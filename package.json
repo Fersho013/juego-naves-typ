@@ -1,0 +1,23 @@
+{
+  "name": "juego-nave-meteoritos",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Juego de nave estilo Echelon ULTRA — Vite + TypeScript + Canvas",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "vite --host",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d dist"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "gh-pages": "^6.1.1",
+    "typescript": "^5.4.5",
+    "vite": "^5.4.8"
+  }
+}
