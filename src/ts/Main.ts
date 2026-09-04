@@ -253,12 +253,12 @@ function startMission(mode: string){
     const mu=document.getElementById('mobile-ui'); if(mu) mu.style.display=(platform.isMobile && !platform.isTouchUIHidden)?'block':'none';
     if(mode==='custom'){
         customSelection.forEach(val=>{
-            if(val==='b1') createBoss({canvas, type:'static', id:'B1'});
-            if(val==='b2') createBoss({canvas, type:'moving', id:'B2'});
-            if(val==='b3'){ createBoss({canvas, type:'static', id:'B1'}); createBoss({canvas, type:'moving', id:'B2'}); }
-            if(val==='b_hunter') createBoss({canvas, type:'hunter', id:'B_HUNTER'});
-            if(val==='b_berserker') createBoss({canvas, type:'berserker', id:'B_BERSERK'});
-            if(val==='b4') createBoss({canvas, type:'doppel', id:'DOPPEL'});
+            if(val==='b1') createBoss({canvas, type:'static' as const, id:'B1'});
+            if(val==='b2') createBoss({canvas, type:'moving' as const, id:'B2'});
+            if(val==='b3'){ createBoss({canvas, type:'static' as const, id:'B1'}); createBoss({canvas, type:'moving' as const, id:'B2'}); }
+            if(val==='b_hunter') createBoss({canvas, type:'hunter' as const, id:'B_HUNTER'});
+            if(val==='b_berserker') createBoss({canvas, type:'berserker' as const, id:'B_BERSERK'});
+            if(val==='b4') createBoss({canvas, type:'doppel' as const, id:'DOPPEL'});
             if(val==='superboss_direct') { spawnSuperBoss(canvas); floatingTexts.push({x: canvas.width/2, y: canvas.height/2 - 40, text: '★ NODRIZA SUPER BOSS ★', life: 1.8, color: '#6ec8ff'}); }
         });
         if(customSelection.includes('superboss_portal')) {
