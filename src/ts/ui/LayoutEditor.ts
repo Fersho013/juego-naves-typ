@@ -31,12 +31,12 @@ export function getEditableIds() {
 }
 
 // Defaults capturados al inicio (en px convertidos a %)
-let defaults = {};
-let layout = {};
+let defaults: Record<string, { leftPct: number; topPct: number; scale: number; widthPx: number; heightPx: number }> = {};
+let layout: Record<string, { leftPct: number; topPct: number; scale: number }> = {};
 let panelPos = { x: 12, y: 12 };
 let isEditing = false;
-let selectedId = null;
-let dragState = null;
+let selectedId: string | null = null;
+let dragState: { id: string; startX: number; startY: number; origLeftPct: number; origTopPct: number; cWidth: number; cHeight: number } | null = null;
 let hasAppliedInitial = false;
 
 function getContainer() { return document.getElementById('game-container'); }
@@ -217,10 +217,9 @@ function ensureLayoutEntry(id) {
     }
 }
 
-function onEditablePointerDown(e) {
+function onEditablePointerDown(e: PointerEvent) {
     if (!isEditing) return;
-    // Si en PC y es control táctil, ignorar
-    const id = e.currentTarget.dataset.editId;
+    const id = (e.currentTarget as HTMLElement).dataset.editId;
     if (!id) return;
     if (!platform.isMobile && TOUCH_IDS.includes(id)) return;
     if (!getEditableIds().includes(id)) return;
@@ -236,7 +235,7 @@ function onEditablePointerDown(e) {
     e.currentTarget.setPointerCapture(e.pointerId);
 }
 
-function onPointerMove(e) {
+function onPointerMove(e: PointerEvent) {
     if (!dragState) return;
     e.preventDefault();
     const dx = e.clientX - dragState.startX;
@@ -246,7 +245,7 @@ function onPointerMove(e) {
     applyElement(dragState.id);
 }
 
-function onPointerUp(e) {
+function onPointerUp(e: PointerEvent) {
     if (!dragState) return;
     e.preventDefault();
     saveLayout();
@@ -254,15 +253,15 @@ function onPointerUp(e) {
     dragState = null;
 }
 
-let panelDrag = null;
-function onPanelHeaderPointerDown(e) {
+let panelDrag: { startX: number; startY: number; origX: number; origY: number; cW: number; cH: number } | null = null;
+function onPanelHeaderPointerDown(e: PointerEvent) {
     if (e.button !== undefined && e.button !== 0) return;
     e.preventDefault(); e.stopPropagation();
     const cRect = getContainer().getBoundingClientRect();
     panelDrag = { startX: e.clientX, startY: e.clientY, origX: panelPos.x, origY: panelPos.y, cW: cRect.width, cH: cRect.height };
-    e.currentTarget.setPointerCapture(e.pointerId);
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
 }
-function onPanelPointerMove(e) {
+function onPanelPointerMove(e: PointerEvent) {
     if (!panelDrag) return;
     e.preventDefault();
     panelPos.x = Math.max(0, Math.min(78, panelDrag.origX + (e.clientX - panelDrag.startX)/panelDrag.cW*100));
@@ -281,10 +280,10 @@ function highlightSelection() {
 }
 
 function syncPanelControls() {
-    const sel = document.getElementById('editor-select');
-    const scale = document.getElementById('editor-scale');
-    const scaleVal = document.getElementById('editor-scale-val');
-    const posLabel = document.getElementById('editor-pos-label');
+    const sel = document.getElementById('editor-select') as HTMLSelectElement | null;
+    const scale = document.getElementById('editor-scale') as HTMLInputElement | null;
+    const scaleVal = document.getElementById('editor-scale-val') as HTMLElement | null;
+    const posLabel = document.getElementById('editor-pos-label') as HTMLElement | null;
     if (sel) {
         // Reconstruir opciones según modo actual
         const ids = getEditableIds();
@@ -294,7 +293,7 @@ function syncPanelControls() {
     }
     if (selectedId && layout[selectedId]) {
         const d = layout[selectedId];
-        if (scale) scale.value = d.scale;
+        if (scale) scale.value = d.scale.toString();
         if (scaleVal) scaleVal.innerText = d.scale.toFixed(2) + 'x';
         if (posLabel) posLabel.innerText = `X:${d.leftPct.toFixed(1)}% Y:${d.topPct.toFixed(1)}%`;
     } else {
@@ -336,23 +335,26 @@ function buildPanelIfNeeded() {
         </div>
     `;
     container.appendChild(panel);
-    const header = panel.querySelector('#layout-editor-header');
-    header.addEventListener('pointerdown', onPanelHeaderPointerDown);
-    header.addEventListener('pointermove', onPanelPointerMove);
-    header.addEventListener('pointerup', onPanelPointerUp);
-    header.addEventListener('pointercancel', onPanelPointerUp);
-    header.style.touchAction = 'none';
-    panel.querySelector('#editor-close').addEventListener('click', () => exitEditMode());
-    panel.querySelector('#editor-minimize').addEventListener('click', () => {
-        const body = panel.querySelector('#layout-editor-body');
-        body.style.display = body.style.display === 'none' ? 'block' : 'none';
+    const header = panel.querySelector('#layout-editor-header') as HTMLElement | null;
+    if (header) {
+        header.addEventListener('pointerdown', onPanelHeaderPointerDown as EventListener);
+        header.addEventListener('pointermove', onPanelPointerMove as EventListener);
+        header.addEventListener('pointerup', onPanelPointerUp as EventListener);
+        header.addEventListener('pointercancel', onPanelPointerUp as EventListener);
+        header.style.touchAction = 'none';
+    }
+    panel.querySelector('#editor-close')?.addEventListener('click', () => exitEditMode());
+    panel.querySelector('#editor-minimize')?.addEventListener('click', () => {
+        const body = panel.querySelector('#layout-editor-body') as HTMLElement | null;
+        if (body) body.style.display = body.style.display === 'none' ? 'block' : 'none';
     });
-    panel.querySelector('#editor-select').addEventListener('change', (e) => { selectedId = e.target.value; highlightSelection(); syncPanelControls(); });
-    panel.querySelector('#editor-scale').addEventListener('input', (e) => {
+    panel.querySelector('#editor-select')?.addEventListener('change', (e) => { selectedId = (e.target as HTMLSelectElement).value; highlightSelection(); syncPanelControls(); });
+    panel.querySelector('#editor-scale')?.addEventListener('input', (e) => {
         if (!selectedId) return;
         ensureLayoutEntry(selectedId);
-        layout[selectedId].scale = parseFloat(e.target.value);
-        document.getElementById('editor-scale-val').innerText = layout[selectedId].scale.toFixed(2) + 'x';
+        layout[selectedId].scale = parseFloat((e.target as HTMLInputElement).value);
+        const scaleVal2 = document.getElementById('editor-scale-val') as HTMLElement | null;
+        if (scaleVal2) scaleVal2.innerText = layout[selectedId].scale.toFixed(2) + 'x';
         applyElement(selectedId);
     });
     panel.querySelector('#editor-scale').addEventListener('change', saveLayout);
@@ -364,10 +366,10 @@ function buildPanelIfNeeded() {
         if (!confirm('¿Resetear todas las posiciones y tamaños?')) return;
         layout = {}; saveLayout(); EDITABLE_IDS.forEach(applyElement); syncPanelControls();
     });
-    panel.querySelector('#editor-save').addEventListener('click', () => {
+    panel.querySelector('#editor-save')?.addEventListener('click', () => {
         saveLayout(); savePanelPos();
-        const btn = panel.querySelector('#editor-save');
-        const orig = btn.innerText; btn.innerText = '✓ Guardado'; setTimeout(()=> btn.innerText = orig, 1200);
+        const btn = panel.querySelector('#editor-save') as HTMLElement | null;
+        if (btn) { const orig = btn.innerText; btn.innerText = '✓ Guardado'; setTimeout(()=> { if (btn) btn.innerText = orig; }, 1200); }
     });
     panel.querySelector('#editor-exit').addEventListener('click', () => exitEditMode(true));
     window.addEventListener('pointermove', onPanelPointerMove);
