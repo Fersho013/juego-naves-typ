@@ -1,7 +1,12 @@
 import { initAudio } from '../Core/Audio.js';
 import { nave } from '../entities/Player.js';
 
-declare global { interface Window { __getGameState?: () => string; } }
+declare global {
+  interface Window {
+    __getGameState?: () => string;
+    __getGameMode?: () => string;
+  }
+}
 
 export function showScreen(id: string): void {
   initAudio();
