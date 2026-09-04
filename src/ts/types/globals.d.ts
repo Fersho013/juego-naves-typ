@@ -1,8 +1,8 @@
 // Global window properties
 declare global {
   interface Window {
-    __getGameState: () => string;
-    __getGameMode: () => string;
+    __getGameState?: () => string;
+    __getGameMode?: () => string;
     toggleVolume: () => void;
     changeNaveColor: (color: string) => void;
     showScreen: (screenId: string) => void;
