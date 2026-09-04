@@ -17,15 +17,16 @@ import { DASH } from './Data/Constants';
 import { initLayoutEditor, enterEditMode, exitEditMode, isEditorActive } from './ui/LayoutEditor';
 import { portals, spawnPortal, clearPortals, updatePortals, drawPortals } from './entities/Portal';
 import { superBossState, spawnSuperBoss, clearSuperBoss, updateSuperBoss, drawSuperBoss, canDamageSuperBoss, damageSuperBoss, damageCannon, damageGate, hasSuperModifierActive, grantSuperModifier, clearSuperModifier } from './entities/SuperBoss';
+import type { GameState, GameMode, InputState } from './types.js';
 
 // --- Canvas ---
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
+const canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
+const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
 
 // Exponer para ui/Menu que consulta estado global
-let gameState = 'MENU';
-let gameMode = 'progressive';
-let customSelection = [];
+let gameState: GameState = 'MENU';
+let gameMode: GameMode = 'progressive';
+let customSelection: string[] = [];
 window.__getGameState = () => gameState;
 window.__getGameMode = () => gameMode;
 
@@ -58,8 +59,8 @@ window.openLayoutEditor = () => {
 };
 window.closeLayoutEditor = (save) => exitEditMode(save);
 
-const input = { moveX: 0, moveY: 0, aimX: 400, aimY: 300, shoot: false, triple: false, bomb: false, parry: false, pause: false, dash: false };
-const keys = {};
+const input: InputState = { moveX: 0, moveY: 0, aimX: 400, aimY: 300, shoot: false, triple: false, bomb: false, parry: false, pause: false, dash: false };
+const keys: Record<string, boolean> = {};
 let startBtnPressed = false;
 
 // --- Preview nave ---
@@ -70,7 +71,7 @@ function refreshVolumeVisibility() { updateVolumeVisibility(); }
 
 // --- applyOptions con platform awareness ---
 function applyOptions() {
-    const sizeVal = document.getElementById('opt-size')?.value || '800x600';
+    const sizeVal = (document.getElementById('opt-size') as HTMLSelectElement | null)?.value || '800x600';
     if (sizeVal === 'auto' || platform.isForcedMobile) {
         config.w = window.innerWidth; config.h = window.innerHeight;
     } else {
@@ -81,7 +82,7 @@ function applyOptions() {
     const container = document.getElementById('game-container');
     if (container) { container.style.width = config.w + 'px'; container.style.height = config.h + 'px'; }
 
-    const touchOpt = document.getElementById('opt-touch')?.value;
+    const touchOpt = (document.getElementById('opt-touch') as HTMLSelectElement | null)?.value;
     if (touchOpt === 'force') platform.isMobile = true;
     else if (touchOpt === 'hide') platform.isMobile = false;
     else if (!platform.isForcedMobile) platform.isMobile = /Mobi|Android/i.test(navigator.userAgent);
@@ -146,10 +147,11 @@ canvas.addEventListener('mousedown', e => { if (isEditorActive()) return; initAu
 canvas.addEventListener('mouseup', e => { if (e.button === 0) input.shoot = false; if (e.button === 2) input.triple = false; });
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 
-function setupJoystick(baseId, stickId, type) {
-    const base = document.getElementById(baseId);
-    const stick = document.getElementById(stickId);
-    let touchId = null;
+function setupJoystick(baseId: string, stickId: string, type: string) {
+    const base = document.getElementById(baseId) as HTMLElement | null;
+    const stick = document.getElementById(stickId) as HTMLElement | null;
+    if (!base || !stick) return;
+    let touchId: number | null = null;
     let center = { x: 0, y: 0 };
     base.addEventListener('touchstart', e => {
         if (isEditorActive()) return;
@@ -190,10 +192,10 @@ function setupJoystick(baseId, stickId, type) {
 }
 setupJoystick('joy-base-l', 'joy-stick-l', 'left');
 setupJoystick('joy-base-r', 'joy-stick-r', 'right');
-const bindTouchBtn = (id, action) => {
-    const el = document.getElementById(id); if (!el) return;
-    el.addEventListener('touchstart', e => { if (isEditorActive()) return; initAudio(); e.preventDefault(); e.stopPropagation(); input[action]=true; el.style.transform='scale(0.85)'; el.style.backgroundColor='rgba(255,255,255,0.2)'; }, {passive:false});
-    const endBtn = e => { e.preventDefault(); e.stopPropagation(); input[action]=false; el.style.transform='scale(1)'; el.style.backgroundColor='rgba(10,10,10,0.7)'; };
+const bindTouchBtn = (id: string, action: 'triple' | 'parry' | 'bomb' | 'dash') => {
+    const el = document.getElementById(id) as HTMLElement | null; if (!el) return;
+    el.addEventListener('touchstart', e => { if (isEditorActive()) return; initAudio(); e.preventDefault(); e.stopPropagation(); (input as unknown as Record<string, boolean>)[action]=true; el.style.transform='scale(0.85)'; el.style.backgroundColor='rgba(255,255,255,0.2)'; }, {passive:false});
+    const endBtn = (e: Event) => { e.preventDefault(); e.stopPropagation(); (input as unknown as Record<string, boolean>)[action]=false; el.style.transform='scale(1)'; el.style.backgroundColor='rgba(10,10,10,0.7)'; };
     el.addEventListener('touchend', endBtn, {passive:false}); el.addEventListener('touchcancel', endBtn, {passive:false});
 };
 bindTouchBtn('btn-triple','triple'); bindTouchBtn('btn-parry','parry'); bindTouchBtn('btn-bomb','bomb'); bindTouchBtn('btn-dash','dash');
@@ -225,20 +227,20 @@ function pollInput() {
 }
 
 function startCustom(){
-    const cbs=document.querySelectorAll('#custom-checkboxes input:checked');
+    const cbs=document.querySelectorAll('#custom-checkboxes input:checked') as NodeListOf<HTMLInputElement>;
     customSelection=Array.from(cbs).map(cb=>cb.value);
     if(customSelection.length===0) return alert("Selecciona al menos un objetivo.");
     startMission('custom');
 }
 
-function startMission(mode){
-    initAudio(); gameMode=mode; gameState='PLAYING';
+function startMission(mode: string){
+    initAudio(); gameMode=mode as GameMode; gameState='PLAYING' as GameState;
     hudState.score=0; progression.currentWave=1; progression.wavePhase=1;
-    combatState.damagePerHit = parseInt(document.getElementById('opt-damage')?.value) || 20;
+    combatState.damagePerHit = parseInt((document.getElementById('opt-damage') as HTMLSelectElement | null)?.value || '20') || 20;
     combatState.health=100; combatState.hasRevive=false; combatState.bombs=3;
     fxState.screenShake=0; parryTimer=0; parryCooldown=false;
     progression.waveKills=0; progression.waveTransition=false; progression.waveTransitionTimer=0;
-    progression.waveKillTarget = parseInt(document.getElementById('opt-kills')?.value) || 50;
+    progression.waveKillTarget = parseInt((document.getElementById('opt-kills') as HTMLInputElement | null)?.value || '50') || 50;
     dashActive=false; dashCooldown=false;
     hudState.comboCount=0; hudState.comboMultiplier=1; if(hudState.comboResetTimer){clearTimeout(hudState.comboResetTimer); hudState.comboResetTimer=null;}
     weaponState.current='normal'; weaponState.timer=0; weaponPowerUps.length=0; debrisChunks.length=0; fxState.hitStopFrames=0;
@@ -318,7 +320,7 @@ function triggerBomb(isPlayer, origin){
         const canSpawnPortal = bosses.length===0 && !superBossState.active && !superBossState.arena && gameState==='PLAYING';
         // En custom, solo si el usuario habilitó super boss
         const customAllows = gameMode!=='custom' || customSelection.includes('superboss_portal');
-        const portalProb = parseInt(document.getElementById('opt-portal')?.value) || 1;
+        const portalProb = parseInt((document.getElementById('opt-portal') as HTMLInputElement | null)?.value || '1') || 1;
         if (canSpawnPortal && customAllows && Math.random() < portalProb / 100) {
             const px = Math.random()*(canvas.width-100)+50; const py = Math.random()*(canvas.height*0.5)+40;
             spawnPortal(px, py);
@@ -426,7 +428,7 @@ function update(){
                 if(proj>0 && perp < sb.h/2 + 12 && Math.abs(sb.x - (nave.x + cos*proj)) < sb.w/2) { sb.hp -= 90; if(sb.hp<0) sb.hp=0; createExplosion(sb.x + (Math.random()-0.5)*sb.w*0.6, sb.y, '#00ff66', 3); }
             }
         }
-        enemies.forEach((e,ei)=>{ const dx=e.x-nave.x,dy=e.y-nave.y; const proj=dx*cos+dy*sin; const perpDist=Math.abs(dx*sin-dy*cos); if(proj>0 && perpDist<18){ if(e.shield){e.shield=false;} else { createExplosion(e.x,e.y); if(e.type==='elite'||e.type==='special') spawnDebris(e.x,e.y,'#00ccff'); enemies.splice(ei,1); if(e.type!=='life'){ hudState.comboCount++; hudState.comboMultiplier=hudState.comboCount>=10?3:hudState.comboCount>=5?2:1; if(hudState.comboResetTimer) clearTimeout(hudState.comboResetTimer); hudState.comboResetTimer=setTimeout(()=>{hudState.comboCount=0;hudState.comboMultiplier=1;updateComboDisplay();},2500); const pts=150*hudState.comboMultiplier; hudState.score+=pts; floatingTexts.push({x:e.x,y:e.y,text:hudState.comboMultiplier>1?`+${pts} x${hudState.comboMultiplier}!`:`+${pts}`,life:1.0,color:hudState.comboMultiplier>=3?'#ff3366':hudState.comboMultiplier===2?'#ffcc00':'#00ccff'}); updateComboDisplay(); if(gameMode==='progressive'){progression.waveKills++; updateWaveProgress({gameMode:{value:gameMode},progression,bosses});} if(e.type==='elite'&&Math.random()>0.4){ const letters=['S','L','R','D']; const wt=letters[Math.floor(Math.random()*4)]; weaponPowerUps.push({x:e.x,y:e.y,letter:wt,vy:1.5,life:600}); } } else { combatState.health=Math.min(100, combatState.health+combatState.damagePerHit); syncHud(); floatingTexts.push({x:e.x,y:e.y,text:`+${combatState.damagePerHit}% VIDA`,life:1.0,color:'#ff66cc'}); } } } });
+        enemies.forEach((e,ei)=>{ const dx=e.x-nave.x,dy=e.y-nave.y; const proj=dx*cos+dy*sin; const perpDist=Math.abs(dx*sin-dy*cos); if(proj>0 && perpDist<18){ if(e.shield){e.shield=false;} else { createExplosion(e.x,e.y); if(e.type==='elite'||e.type==='special') spawnDebris(e.x,e.y,'#00ccff'); enemies.splice(ei,1); if(e.type!=='life'){ hudState.comboCount++; hudState.comboMultiplier=hudState.comboCount>=10?3:hudState.comboCount>=5?2:1; if(hudState.comboResetTimer) clearTimeout(hudState.comboResetTimer); hudState.comboResetTimer=setTimeout(()=>{hudState.comboCount=0;hudState.comboMultiplier=1;updateComboDisplay();},2500); const pts=150*hudState.comboMultiplier; hudState.score+=pts; floatingTexts.push({x:e.x,y:e.y,text:hudState.comboMultiplier>1?`+${pts} x${hudState.comboMultiplier}!`:`+${pts}`,life:1.0,color:hudState.comboMultiplier>=3?'#ff3366':hudState.comboMultiplier===2?'#ffcc00':'#00ccff'}); updateComboDisplay(); if(gameMode==='progressive'){progression.waveKills++; updateWaveProgress({gameMode:{value:gameMode},progression,bosses});} if(e.type==='elite'&&Math.random()>0.4){ const letters=['S','L','R','D']; const wt=letters[Math.floor(Math.random()*4)]; weaponPowerUps.push({x:e.x,y:e.y,letter:(wt as "S" | "L" | "R" | "D"),vy:1.5,life:600}); } } else { combatState.health=Math.min(100, combatState.health+combatState.damagePerHit); syncHud(); floatingTexts.push({x:e.x,y:e.y,text:`+${combatState.damagePerHit}% VIDA`,life:1.0,color:'#ff66cc'}); } } } });
         bosses.forEach((b,bLIdx)=>{ if(b.type==='doppel'&&b.parryActive) return; if(b.immune) return; const dx=b.x-nave.x,dy=b.y-nave.y; const proj=dx*cos+dy*sin,perp=Math.abs(dx*sin-dy*cos); const lRadius=(b.type==='doppel_y'||b.type==='doppel_o')?30:50; if(proj>0 && perp<lRadius){ b.hp-=100; updateBossHP(b); if(b.hp<=0 && (b.type==='doppel_y'||b.type==='doppel_o')){ const col=b.type==='doppel_y'?'#ffff00':'#ff6600'; createExplosion(b.x,b.y,col,50); spawnDebris(b.x,b.y,col,6); fxState.hitStopFrames=8; fxState.screenShake=20; hudState.score+=8000; floatingTexts.push({x:b.x,y:b.y-50,text:b.type==='doppel_y'?'★ DOPPEL AMARILLO DESTRUIDO ★':'★ DOPPEL NARANJA DESTRUIDO ★',life:2.0,color:col}); bosses.splice(bLIdx,1); renderBossUI(); dropRevivePickup(b.x,b.y); } } });
     }
     if(input.parry && !parryCooldown){ sfx.parry(); parryActive=true; parryCooldown=true; input.parry=false; parryTimer=2000; const el=document.getElementById('val-parry'); if(el){el.innerText="ACTIVE"; el.style.color="var(--success)";} setTimeout(()=>{parryActive=false; const e2=document.getElementById('val-parry'); if(e2){e2.innerText="RECHARGING"; e2.style.color="var(--danger)";}},200); setTimeout(()=>{parryCooldown=false; const e3=document.getElementById('val-parry'); if(e3){e3.innerText="READY"; e3.style.color="var(--success)";}},2000); }
@@ -519,7 +521,7 @@ function update(){
     bullets.forEach((bul,bi)=>{
         if(bul.isHoming){ bul.life=(bul.life!==undefined?bul.life:240)-1; let target=null,bestDist=Infinity; enemies.forEach(e=>{const d=Math.hypot(e.x-bul.x,e.y-bul.y); if(d<bestDist){bestDist=d; target=e;}}); bosses.forEach(bx=>{ if(!bx.immune){const d=Math.hypot(bx.x-bul.x,bx.y-bul.y); if(d<bestDist){bestDist=d; target=bx;}}}); if(target){const hAng=Math.atan2(target.y-bul.y,target.x-bul.x); bul.vx+=Math.cos(hAng)*0.7; bul.vy+=Math.sin(hAng)*0.7;} const hs=Math.hypot(bul.vx,bul.vy); if(hs>9){bul.vx=(bul.vx/hs)*9; bul.vy=(bul.vy/hs)*9;}}
         bul.x+=bul.vx; bul.y+=bul.vy; let hit=bul.isHoming && bul.life<=0;
-        enemies.forEach((e,ei)=>{ if(!hit && Math.hypot(bul.x-e.x,bul.y-e.y)<25){ hit=true; if(e.shield){e.shield=false; e.vy*=1.5;} else { e.hp-=bul.dmg; if(e.hp<=0){ createExplosion(e.x,e.y); if(e.type==='elite') fxState.hitStopFrames=5; if(e.type==='elite'||e.type==='special') spawnDebris(e.x,e.y,e.type==='elite'?'#00ffcc':'#ffcc00'); enemies.splice(ei,1); if(e.type!=='life' && gameMode==='progressive'){progression.waveKills++; updateWaveProgress({gameMode:{value:gameMode},progression,bosses});} hudState.comboCount++; hudState.comboMultiplier=hudState.comboCount>=10?3:hudState.comboCount>=5?2:1; if(hudState.comboResetTimer) clearTimeout(hudState.comboResetTimer); hudState.comboResetTimer=setTimeout(()=>{hudState.comboCount=0;hudState.comboMultiplier=1;updateComboDisplay();},2500); const pts=150*hudState.comboMultiplier; hudState.score+=pts; floatingTexts.push({x:e.x,y:e.y,text:hudState.comboMultiplier>1?`+${pts} x${hudState.comboMultiplier}!`:`+${pts}`,life:1.0,color:hudState.comboMultiplier>=3?'#ff3366':hudState.comboMultiplier===2?'#ffcc00':'#fff'}); updateComboDisplay(); if(e.type==='life'){ combatState.health=Math.min(100, combatState.health+combatState.damagePerHit); syncHud(); floatingTexts.push({x:e.x,y:e.y-20,text:`+${combatState.damagePerHit}% VIDA`,life:1.0,color:'#ff66cc'}); } if(e.type==='elite'&&Math.random()>0.4){ const letters=['S','L','R','D']; const wt=letters[Math.floor(Math.random()*4)]; weaponPowerUps.push({x:e.x,y:e.y,letter:wt,vy:1.5,life:600}); } if(Math.random()>0.95 && e.type!=='life') pickUps.push({x:e.x,y:e.y,type:'bomb'}); } } } });
+        enemies.forEach((e,ei)=>{ if(!hit && Math.hypot(bul.x-e.x,bul.y-e.y)<25){ hit=true; if(e.shield){e.shield=false; e.vy*=1.5;} else { e.hp-=bul.dmg; if(e.hp<=0){ createExplosion(e.x,e.y); if(e.type==='elite') fxState.hitStopFrames=5; if(e.type==='elite'||e.type==='special') spawnDebris(e.x,e.y,e.type==='elite'?'#00ffcc':'#ffcc00'); enemies.splice(ei,1); if(e.type!=='life' && gameMode==='progressive'){progression.waveKills++; updateWaveProgress({gameMode:{value:gameMode},progression,bosses});} hudState.comboCount++; hudState.comboMultiplier=hudState.comboCount>=10?3:hudState.comboCount>=5?2:1; if(hudState.comboResetTimer) clearTimeout(hudState.comboResetTimer); hudState.comboResetTimer=setTimeout(()=>{hudState.comboCount=0;hudState.comboMultiplier=1;updateComboDisplay();},2500); const pts=150*hudState.comboMultiplier; hudState.score+=pts; floatingTexts.push({x:e.x,y:e.y,text:hudState.comboMultiplier>1?`+${pts} x${hudState.comboMultiplier}!`:`+${pts}`,life:1.0,color:hudState.comboMultiplier>=3?'#ff3366':hudState.comboMultiplier===2?'#ffcc00':'#fff'}); updateComboDisplay(); if(e.type==='life'){ combatState.health=Math.min(100, combatState.health+combatState.damagePerHit); syncHud(); floatingTexts.push({x:e.x,y:e.y-20,text:`+${combatState.damagePerHit}% VIDA`,life:1.0,color:'#ff66cc'}); } if(e.type==='elite'&&Math.random()>0.4){ const letters=['S','L','R','D']; const wt=letters[Math.floor(Math.random()*4)]; weaponPowerUps.push({x:e.x,y:e.y,letter:(wt as "S" | "L" | "R" | "D"),vy:1.5,life:600}); } if(Math.random()>0.95 && e.type!=='life') pickUps.push({x:e.x,y:e.y,type:'bomb'}); } } } });
         // --- Super Boss colisiones ---
         if(!hit && superBossState.active && !superBossState.destroyed) {
             if(superBossState.phase===1) {
